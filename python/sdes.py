@@ -17,6 +17,7 @@ class SDES:
         self.keys = []
         self.cipher = ""
         self.plaintext = ""
+        self.iv = ""
         # constants for S functions for going from 4 to 2 bits
         self.S1 = [
             [1, 0, 3, 2],
@@ -38,6 +39,7 @@ class SDES:
         self.keys = []
         self.cipher = ""
         self.plaintext = ""
+        self.iv = ""
     
     def set_plaintext(self, plaintext):
         """
@@ -59,6 +61,13 @@ class SDES:
         else:
             print("The ciphertext must be divisible by 8 bits")
 
+    def set_iv(self, iv):
+        if len(iv) == 4:
+            self.iv =  iv.replace("0x", "")
+        else:
+            print("The input is a one byte hex value")
+        
+
     def get_plaintext(self):
         return self.plaintext
 
@@ -68,6 +77,9 @@ class SDES:
     def get_keys(self):
         return self.keys
 
+    def get_iv(self):
+        return self.iv
+
     def print_plaintext(self):
         print(self.plaintext)
 
@@ -76,6 +88,9 @@ class SDES:
 
     def print_keys(self):
         print(self.keys)
+
+    def print_iv(self):
+        print(self.iv)
 
     def set_keys(self, keys):
         """
@@ -97,13 +112,38 @@ class SDES:
     def run_d_des_encryption(self):
         temp_plaintext = self.plaintext.replace("0x", "")
         # go through and encrypt one byte or two hex at a time
-        cipher = "0x"
+        cipher = ""
+        # encrypt first time
         for i in range(0, len(temp_plaintext), 2):
             cipher = cipher + self.encrypt(temp_plaintext[i:i+2], self.keys[0])
         temp_plaintext = cipher
+        cipher = "0x"
+        # encrypt second time
         for i in range(0, len(temp_plaintext), 2):
             cipher = cipher + self.encrypt(temp_plaintext[i:i+2], self.keys[1])
         self.cipher = cipher
+    
+    def run_cbc_d_des_encryption(self):
+        temp_plaintext = self.plaintext.replace("0x", "")
+        # go through and encrypt one byte or two hex at a time
+        iv = self.iv
+        cipher = ""
+        # encrypt first time
+        for i in range(0, len(temp_plaintext), 2):
+            iv = (BitArray(hex=iv)^BitArray(hex=temp_plaintext[i:i+2])).hex
+            iv = self.encrypt(iv, self.keys[0])
+            cipher = cipher + iv
+            #self.encrypt(iv, self.keys[0])
+        temp_plaintext = cipher
+        iv = self.iv
+        cipher = "0x"
+        # encrypt second time
+        for i in range(0, len(temp_plaintext), 2):
+            iv = (BitArray(hex=iv)^BitArray(hex=temp_plaintext[i:i+2])).hex
+            iv = self.encrypt(iv, self.keys[1])
+            cipher = cipher + iv
+        self.cipher = cipher
+        return 0
 
     
     def encrypt(self, byte, key):
@@ -153,13 +193,41 @@ class SDES:
     def run_d_des_decryption(self):
         temp_cipher = self.cipher.replace("0x", "")
         # go through and encrypt one byte or two hex at a time
-        plaintext = "0x"
-        for i in range(0, len(temp_cipher), 2):
-            plaintext = plaintext + self.decrypt(temp_cipher[i:i+2], self.keys[0])
-        temp_cipher = plaintext
+        plaintext = ""
+        # run decrpyt on second key
         for i in range(0, len(temp_cipher), 2):
             plaintext = plaintext + self.decrypt(temp_cipher[i:i+2], self.keys[1])
+        temp_cipher = plaintext
+        plaintext = "0x"
+        # run decrypt on fisrt key
+        for i in range(0, len(temp_cipher), 2):
+            plaintext = plaintext + self.decrypt(temp_cipher[i:i+2], self.keys[0])
         self.plaintext = plaintext
+
+    def run_cbc_d_des_decryption(self):
+        temp_cipher = self.cipher.replace("0x", "")
+        # go through and encrypt one byte or two hex at a time
+        plaintext = ""
+        # run decrpyt on second key
+        for i in range(len(temp_cipher) - 2, -1, -2):
+            temp_plaintext = self.decrypt(temp_cipher[i:i+2], self.keys[1])
+            if i == 0:
+                iv = BitArray(hex=self.iv)
+            else:
+                iv = BitArray(hex=temp_cipher[i-2:i])
+            plaintext = plaintext + (iv^BitArray(hex=temp_plaintext)).hex
+        temp_cipher = plaintext
+        plaintext = "0x"
+        # run decrypt on fisrt key
+        for i in range(len(temp_cipher) - 2, -1, -2):
+            temp_plaintext = self.decrypt(temp_cipher[i:i+2], self.keys[0])
+            if i == 0:
+                iv = BitArray(hex=self.iv)
+            else:
+                iv = BitArray(hex=temp_cipher[i-2:i])
+            plaintext = plaintext + (iv^BitArray(hex=temp_plaintext)).hex
+        self.plaintext = plaintext
+        return 0
 
     def decrypt(self, byte, key):
         """
@@ -266,13 +334,29 @@ class SDES:
     
 if __name__ == "__main__":
     s_des = SDES()
-    s_des.set_plaintext("0x10")
+    s_des.set_plaintext("0x00")
     s_des.print_plaintext()
-    s_des.set_keys(["0000000000"])
+    s_des.set_keys(["1010101010", "0101010101"])
     s_des.print_keys()
     s_des.run_des_encryption()
     s_des.print_cipher()
     s_des.set_plaintext("0xtest")
     s_des.print_plaintext()
     s_des.run_des_decryption()
+    s_des.print_plaintext()
+
+    s_des.set_plaintext("0x8040201008040201")
+    s_des.print_plaintext()
+    s_des.run_d_des_encryption()
+    s_des.print_cipher()
+    s_des.set_plaintext("0xtest")
+    s_des.print_plaintext()
+    s_des.run_d_des_decryption()
+    s_des.print_plaintext()
+
+    s_des.set_iv("0x6a")
+    #s_des.run_cbc_d_des_encryption()
+    s_des.run_cbc_d_des_encryption()
+    s_des.print_cipher()
+    s_des.run_cbc_d_des_decryption()
     s_des.print_plaintext()
