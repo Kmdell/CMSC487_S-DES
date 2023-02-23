@@ -215,9 +215,9 @@ class SDES:
                 iv = BitArray(hex=self.iv)
             else:
                 iv = BitArray(hex=temp_cipher[i-2:i])
-            plaintext = plaintext + (iv^BitArray(hex=temp_plaintext)).hex
+            plaintext = (iv^BitArray(hex=temp_plaintext)).hex + plaintext
         temp_cipher = plaintext
-        plaintext = "0x"
+        plaintext = ""
         # run decrypt on fisrt key
         for i in range(len(temp_cipher) - 2, -1, -2):
             temp_plaintext = self.decrypt(temp_cipher[i:i+2], self.keys[0])
@@ -225,8 +225,8 @@ class SDES:
                 iv = BitArray(hex=self.iv)
             else:
                 iv = BitArray(hex=temp_cipher[i-2:i])
-            plaintext = plaintext + (iv^BitArray(hex=temp_plaintext)).hex
-        self.plaintext = plaintext
+            plaintext = (iv^BitArray(hex=temp_plaintext)).hex + plaintext
+        self.plaintext = "0x" + plaintext
         return 0
 
     def decrypt(self, byte, key):
